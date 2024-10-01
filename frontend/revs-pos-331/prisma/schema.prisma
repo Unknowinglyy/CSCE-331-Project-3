@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id          Int    @id @default(autoincrement())
+  name        String @db.VarChar
+  email       String @unique @db.VarChar
+  permissions Int?
+}
+
+model food {
+  foodID         Int              @id
+  name           String
+  price          Float            @db.Real
+  foodType       String
+  onmenu         Int?
+  startmonth     Int?
+  endmonth       Int?
+  temperature    String?          @db.VarChar(50)
+  foodingredient foodingredient[] @ignore
+  foodticket     foodticket[]     @ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model foodingredient {
+  foodID       Int
+  ingredientID Int
+  amount       Int
+  food         food       @relation(fields: [foodID], references: [foodID], onDelete: NoAction, onUpdate: NoAction)
+  ingredient   ingredient @relation(fields: [ingredientID], references: [ingredientID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model foodticket {
+  amount   Int
+  ticketID Int
+  foodID   Int?
+  food     food?  @relation(fields: [foodID], references: [foodID], onDelete: NoAction, onUpdate: NoAction)
+  ticket   ticket @relation(fields: [ticketID], references: [ticketID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@ignore
+}
+
+model ingredient {
+  ingredientID    Int              @id
+  name            String
+  stock           Int?
+  timeCookSeconds Int              @default(6)
+  foodingredient  foodingredient[] @ignore
+}
+
+model ticket {
+  ticketID    Int          @id
+  timeOrdered DateTime     @db.Timestamp(6)
+  totalCost   Float?
+  payment     String?
+  foodticket  foodticket[] @ignore
+}

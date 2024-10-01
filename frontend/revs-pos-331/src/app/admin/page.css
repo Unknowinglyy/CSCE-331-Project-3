@@ -1,0 +1,252 @@
+.title{
+    font-size: 10vh;
+    font-weight: bold;
+    padding: 3vh;
+    text-align: center;
+    color: red;
+}
+.userCreate form{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.addUserButton{
+    text-align: center;
+    max-width: 50vh;
+    --tw-bg-opacity: 1;
+    background-color: rgb(100 116 139 / var(--tw-bg-opacity));
+    padding: 2vh;
+    margin: 2vh;
+    font-size: 3vh;
+    border: 1vh;
+    border-radius: 1vh;
+    background-size: contain;
+}
+.addUserButton:hover{
+    --tw-bg-opacity: 0.8;
+    cursor: pointer;
+}
+ .userList {
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+
+  .userList h2{
+    font-weight: bold;
+    text-align: center;
+    font-size: 5vh;
+    padding: 5vh;
+  }
+  
+  .userCreate {
+    margin-top: 2vh;
+    margin-bottom: 2vh;
+  }
+
+  .userUpdate form, .userCreate form{
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    font-size: 3vh;
+  }
+
+  .userUpdate form label, .userCreate form label{
+    margin-bottom: 2vh;
+    margin-top: 2vh;
+  }
+
+  .userUpdate h2, .userCreate h2{
+    font-weight: bold;
+    font-size: 5vh;
+    padding-top: 5vh;
+    text-align: center;
+  }
+
+  .userUpdate h3, .userCreate h3{
+    text-align: center;
+    font-size: 3vh;
+  }
+
+  .userList ul {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .divTitle, .userList li {
+    display: flex;
+    justify-content: space-between;
+    padding: 5vh;
+    border-bottom: 1px solid #ccc;
+    align-items: center;
+    font-size: 3vh;
+    flex: 1;
+  }
+
+  .divTitle p, .userList li p {
+    text-align: center;
+    flex: 1;
+  }
+  .divTitle{
+    font-weight: bold;
+  }
+  .userDelete h2{
+    font-weight: bold;
+    font-size: 5vh;
+    padding-top: 5vh;
+    text-align: center;
+  }
+  .userDelete h3{
+    text-align: center;
+    padding-bottom: 2vh;
+  }
+  .userDelete form{
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .updateUserButton, .deleteUserButton{
+    --tw-bg-opacity: 1;
+    background-color: rgb(100 116 139 / var(--tw-bg-opacity));
+    padding: 2vh 1vh;
+    margin: 3vh;
+    font-size: 3vh;
+    border-radius: '5px';
+    color: 'white';
+    border: 'none';
+  }
+
+  .updateUserButton:hover, .deleteUserButton:hover{
+    --tw-bg-opacity: 0.8;
+    cursor: pointer;
+  }
+
+  .exitButton{
+    display: inline-block;
+    justify-content: space-between;
+    font-size: 3vh;
+    padding: 1vh 2vh;
+    --tw-bg-opacity: 1;
+    background-color: rgb(100 116 139 / var(--tw-bg-opacity));
+    border-radius: 1vh;
+    color: white;
+  }
+ .editAndDeleteButtons{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+ }
+ .editButton, .deleteButton{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1vh;
+  border-radius: 1vh;
+  font-size: 3vh;
+  padding: 2vh;
+ }
+ .deleteButton{
+  background-color: red;
+ }
+ .editButton{
+  background-color: rgb(38, 189, 38);
+ }
+ .editPopup{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: fit-content;
+ }
+
+ .editPopup label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1vh;
+  font-size: 3vh;
+}
+.updateUserButton{
+  display: inline-block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1vh;
+  border-radius: 1vh;
+  font-size: 2vh;
+  padding: 2vh;
+}
+.Input{
+  background-color: white;
+  color: black;
+}
+.adminMain{
+  /* Basic dimensions and centering */
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+
+  /* Dark mode colors and gradient */
+  background: #121212; /* Fallback for browsers that don't support gradients */
+  background: linear-gradient(
+    135deg,
+    #121212 25%,
+    #1a1a1a 25%,
+    #1a1a1a 50%,
+    #121212 50%,
+    #121212 75%,
+    #1a1a1a 75%,
+    #1a1a1a
+  );
+  background-size: 40px 40px;
+
+  /* Animation */
+  animation: move 4s linear infinite;
+}
+
+@keyframes move {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 40px;
+  }
+}
+
+.editUserButton, .closeButton{
+  font-size: 3vh;
+}
+.navButton {
+  display: inline-block;
+  padding: 0.9rem 1.8rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  border: 3px solid rgb(252, 70, 100);
+  cursor: pointer;
+  position: relative;
+  background-color: transparent;
+  text-decoration: none;
+  overflow: hidden;
+  z-index: 1;
+  font-family: inherit;
+ }
+ 
+ .navButton::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgb(252, 70, 100);
+  transform: translateX(-100%);
+  transition: all .3s;
+  z-index: -1;
+ }
+ 
+ .navButton:hover::before {
+  transform: translateX(0);
+ }

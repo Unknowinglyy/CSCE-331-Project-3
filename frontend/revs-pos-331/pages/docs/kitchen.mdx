@@ -1,0 +1,340 @@
+# The Kitchen Display
+
+This page is a real time display and interface for cooks and kitchen staff to access all incoming order tickets. It contains features to promote fast kitchen workflow by reducing clutter as well as being easy and simple to access.
+
+## Live Ticket Updates
+This is the main function for the kitchen page `fetchTickets`. It serves the purpose of parsing all incoming tickets as well as tickets being passed through the kitchen in real time. It first calls a GET request via a URL, then parsing that response into an interface in the backend, the status of each order is handled by another function `getStatus` detailed later in this documentation.
+
+Following this will be the API call made to gather the order ticket information.
+
+```tsx showLineNumbers
+const fetchTickets = async () => {
+    try {
+        // establish api call via url
+        const baseUrl = '/api/ticketList';
+        const url = new URL(baseUrl, window.location.origin);
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+
+        });
+        // receive and parse the response from api
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Fetched items:", data);
+            if (data && Array.isArray(data)) {
+                setResults(data.map(ticket => ({ ...ticket, status: getStatus(ticket) })));
+            }
+        }
+    } catch (error) {
+        console.error('Error submitting form:', error);
+    }
+};
+```
+
+### API Route for Fetching Tickets
+This API route is a GET request to the database that `fetchTickets` is dependent on. It gathers at least 10 completed tickets, however those completed tickets will be replaced with any amount of tickets that are in progress, pending, or overdue. This call allows for the kitchen display to always have a log of orders being worked on in the kitchen, or orders that have been recently completed.
+
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+
+        const stmt = `
+        (
+            SELECT "ticketID", "isStarted", "isOverdue", "isCompleted"
+            FROM ticket
+            ORDER BY "ticketID" DESC
+            LIMIT 10
+        )
+        UNION
+        (
+            SELECT "ticketID", "isStarted", "isOverdue", "isCompleted"
+            FROM ticket
+            WHERE "isCompleted" = 0
+        )
+        ORDER BY "ticketID" ASC;
+                `
+        const result = await pool.query(stmt);
+
+        if (result) {
+            return new Response(JSON.stringify(result.rows), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+
+            });
+
+        }
+        else {
+            return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+        }
+    } catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+
+## Getting each Orders Status
+The kitchen needs to be able to see what orders are currently being worked on in the kitchen, this function fills that need. It parses the status flags from the API route for `fetchTickets` to determine which orders are `pending` and haven't been started, which orders are currently `in progress`, which orders have been in the kitchen for longer than expected and are now `overdue`, and finally which orders are `completed`.
+
+This allows for simple, small, numbers in the database to be efficiently parsed within the application for the more complex display
+```tsx showLineNumbers
+const getStatus = (ticket: any): 'pending' | 'inProgress' | 'overdue' | 'completed' => {
+    // statements check flags tied to each order
+    if (ticket.isCompleted) return 'completed';
+    if (ticket.isOverdue) return 'overdue';
+    if (ticket.isStarted) return 'inProgress';
+    return 'pending';
+};
+```
+
+## Getting the Estimated Cook Time
+To encourage a fast workflow within the kitchen, the app calculates an estimated time to complete each order ticket, based on the time necessary to complete every part of every item in the order. Doing this allows the display to have an `overdue` column, allowing kitchen staff to see what orders are being held up, and may need more resources delegated to.
+
+This function is dependent on an API route detailed later in the documentation.
+```tsx showLineNumbers
+const getCookTime = async (ticket: number) => {
+    try {
+        // establish api call via url
+        const baseUrl = '/api/getTicketTime';
+        const url = new URL(baseUrl, window.location.origin);
+        url.searchParams.append('"ticketID"', ticket.toString());
+
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+
+        });
+        // parse response
+        if (response.ok) {
+            const data = await response.json();
+            const { totalcooktimeseconds } = data[0];
+            console.log("Fetched time:", totalcooktimeseconds);
+            return totalcooktimeseconds;
+        }
+    } catch (error) {
+        console.error('Error submitting form:', error);
+    }
+}
+```
+
+### The API Route to Find Cook Time
+To prevent slowdown of the application, the API route for finding the cook time handles all calculations across the various database tables, and elegantly gets the cooktime for a given ticket in one PostreSQL query.
+
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+
+        // Extracting specific parameters
+        const ticketID = searchParams.get('"ticketID"');
+        const stmt = `
+                SELECT 
+                    t."ticketID",
+                    SUM(i."timeCookSeconds" * fi.amount) AS TotalCookTimeSeconds
+                FROM ticket t
+                JOIN foodTicket ft ON t."ticketID" = ft."ticketID"
+                JOIN food f ON ft."foodID" = f."foodID"
+                JOIN foodIngredient fi ON f."foodID" = fi."foodID"
+                JOIN ingredient i ON fi."ingredientID" = i."ingredientID"
+                WHERE t."ticketID" = $1
+                GROUP BY t."ticketID";
+                    `
+        const result = await pool.query(stmt, [ticketID]);
+        console.log(result);
+        if (result) {
+            return new Response(JSON.stringify(result.rows), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        else {
+            return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+        }
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+
+## Updating the Status of Each Order
+More important than just being able to see the status of orders in the kitchen, is for staff to be able to update the status of each order, whether it is starting an order and getting its ticket information, or finishing an order that was in progress or overdue.
+
+This handler function `handleStatusChange` has a few dependencies that will be detailed later, those being the functions to actually change the status, and functions to handle every order when staff start working on it.
+
+Whenever an order is started in the kitchen it needs to begin the estimated time to cook timemr, as well as print out a ticket receipt to the cook containing all items in the order. This printed receipt is not any sort of official log, but merely to allow the cook an easy way to view what is in the order without needing to go over to the kitchen display tablet, slowing down the kitchens workflow.
+```tsx showLineNumbers
+const handleStatusChange = async (ticketID: number, newStatus: 'inProgress' | 'overdue' | 'completed') => {
+    // Immediately sets ticket to new status
+    changeStatus(ticketID, newStatus);
+
+    // If the ticket is being set to 'In Progress', start a timer for estimated time
+    if (newStatus === 'inProgress') {
+        receiptHandler(ticketID);
+        setTimeout(async () => {
+            const ticket = resultsRef.current.find(t => t.ticketID === ticketID);
+            console.log(ticket);
+            // If the order is still in progress when the timer expires, set the status to overdue
+            if (ticket && ticket.status === 'inProgress') {
+                changeStatus(ticketID, 'overdue');
+            }
+        }, await getCookTime(ticketID) * 1000);
+    }
+};
+```
+
+## Changing the Orders Status
+This function is a dependency of `handleStatusChange` and serves to parse an API route to the database that updates a tickets flags, and updates the status within the application.
+
+```tsx showLineNumbers
+const changeStatus = async (ticketID: number, newStatus: 'inProgress' | 'overdue' | 'completed') => {
+    // establish api call via url
+    const baseURL = 'api/updateTicketStatus';
+    const url = new URL(baseURL, window.location.origin);
+    url.searchParams.append('"ticketID"', ticketID.toString());
+    if (newStatus == 'inProgress') {
+        url.searchParams.append('"isStarted"', '1');
+        url.searchParams.append('"isOverdue"', '0');
+        url.searchParams.append('"isCompleted"', '0');
+    } else if (newStatus == 'overdue') {
+        console.log("Setting overdue");
+        url.searchParams.append('"isStarted"', '0');
+        url.searchParams.append('"isOverdue"', '1');
+        url.searchParams.append('"isCompleted"', '0');
+    } else if (newStatus == 'completed') {
+        url.searchParams.append('"isStarted"', '0');
+        url.searchParams.append('"isOverdue"', '0');
+        url.searchParams.append('"isCompleted"', '1');
+    }
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    // once database is updated change the flags on the orders in the UI
+    if (response.ok) {
+        setResults(currentResults => currentResults.map(ticket =>
+            ticket.ticketID === ticketID ? { ...ticket, status: newStatus } : ticket
+        ));
+    } else {
+        console.error('Failed to update ticket status:', await response.text());
+    }
+}
+```
+
+### API Route for Updating the Status
+This route to the database posts an update to the flags of a specific order ticket.
+
+```tsx showLineNumbers
+export async function POST(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+        const ticketID = searchParams.get('"ticketID"');
+        console.log("ticket Read:", ticketID);
+        const isStarted = searchParams.get('"isStarted"');
+        const isOverdue = searchParams.get('"isOverdue"');
+        const isCompleted = searchParams.get('"isCompleted"');
+        console.log("flags Read:", isStarted, isOverdue, isCompleted);
+        const stmt = `
+                UPDATE ticket
+                SET "isStarted" = $1,
+                "isOverdue" = $2,
+                "isCompleted" = $3
+                WHERE "ticketID" = $4
+                RETURNING *;
+                `
+        const result = await pool.query(stmt, [isStarted, isOverdue, isCompleted, ticketID]);
+
+        if (result) {
+            return new Response(JSON.stringify(result), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        else {
+            return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+        }
+    } catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+
+## Printing the Ticket Receipt
+While using paper may seem out of date, when prioritizing the efficiency of the kitchen cooks cannot be moving back and forth in the kitchen to a display to find what an order needs. Printing a simple ticket receipt that can be thrown away gives the cooks an easy reference to see what items are in the order they are currently fulfilling, speeding up their workflow. This does not take away from any official logs that will be stored within the application and its database.
+
+This function is also dependent on an API route to get the information of a ticket.
+```tsx showLineNumbers
+const receiptHandler = async (ticketID: number) => {
+    try {
+        const baseUrl = '/api/ticketReceipt';
+        const url = new URL(baseUrl, window.location.origin);
+        url.searchParams.append('"ticketID"', ticketID.toString());
+        const response2 = await fetch(url.toString(), {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+
+        });
+        // once the response is received parse it and create the receipt .txt file to print
+        if (response2.ok) {
+            const data2 = await response2.json();
+            console.log("grabbed this:", data2);
+            const { ticketID, items } = data2;
+            const content = `Ticket Number: ${ticketID}\nMenu Items:\n${items.join('\n')}`;
+            // create file
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const href = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = href;
+            link.download = `ticket_receipt_${ticketID}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(href);
+        }
+    } catch (error) {
+        console.error('Error submitting form:', error);
+    }
+}
+```
+
+### The API Route to Get Ticket Receipt Information
+This API get request gets the order item information for a respective ticket.
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+        const ticketID = searchParams.get('"ticketID"');
+
+        const stmt = `
+                SELECT t."ticketID", array_agg(f."name") AS items
+                FROM ticket t
+                JOIN foodTicket ft ON t."ticketID" = ft."ticketID"
+                JOIN food f ON ft."foodID" = f."foodID"
+                WHERE t."ticketID" = $1
+                GROUP BY t."ticketID";
+                `
+        const result = await pool.query(stmt, [ticketID]);
+        console.log(result);
+        if (result) {
+            return new Response(JSON.stringify(result.rows[0]), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        else {
+            return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+        }
+    } catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```

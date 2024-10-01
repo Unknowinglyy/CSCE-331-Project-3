@@ -1,0 +1,9 @@
+{
+  "start": "Getting Started",
+  "main": "Landing Page",
+  "customer": "Customer",
+  "cashier": "Cashier",
+  "manager": "Manager",
+  "admin": "Admin",
+  "kitchen": "Kitchen"
+}

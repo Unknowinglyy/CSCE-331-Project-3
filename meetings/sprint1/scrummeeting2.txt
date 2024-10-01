@@ -1,0 +1,84 @@
+SCRUM Meeting 2 for Rev’s POS
+Prepared by: Shantanu Raghavan	
+Meeting Date: 03/27/2024
+Meeting Attendees
+Sam Bush
+Dong Ha Cho
+Blake Dejohn
+Nicholas Petersilge
+Shantanu Raghavan 
+
+Meeting Agenda Items
+-Task Feasibility
+-Difficulties and Roadblocks
+
+Accomplishments:
+Frontend works with backend on customer page
+Can view menu items in manager view
+
+Tasks Completed:
+
+
+Design frontend interfaces for category selection and dynamic menu display.
+Dong Ha Cho
+ COMPLETE
+Design frontend interfaces for cart viewing, adding/removing items, and modification.
+Dong Ha Cho
+ COMPLETE
+Implement and connect frontend designs to fetch and display menu items from the backend.
+ Nicholas Petersilge
+ COMPLETE
+Design and create tables for: Orders, Food Items, and Ingredients
+Sam Bush
+ COMPLETE
+ Design relationships between tables, ensuring data integrity and efficient querying.
+Sam Bush
+ COMPLETE
+Populate the database with initial data (as needed).
+ Blake Dejohn
+ COMPLETE
+ Develop the GET endpoint to retrieve the entire menu.
+Shantanu Raghavan
+ COMPLETE
+ Develop the GET endpoint to fetch menu items filtered by category
+Nicholas Petersilge
+ COMPLETE
+Develop the POST endpoint for submitting new orders.
+Nicholas Petersilge
+ COMPLETE
+ Develop the PATCH endpoint to update inventory stock after order placement.
+ Nicholas Petersilge 
+ COMPLETE
+ Establish backend connectivity to the database for data retrieval and updates.
+Shantanu Raghavan
+ COMPLETE
+View past orders API endpoint
+Shantanu Raghavan
+ COMPLETE
+View Static Menu
+Blake Dejohn
+INCOMPLETE
+Add new menu item API endpoint
+Shantanu Raghavan
+ COMPLETE
+Adjust Inventory stock
+Sam Bush
+INCOMPLETE
+
+
+Before The Next Meeting
+Plans:
+ Start thinking about next sprint plans
+Try and use similar code practices across branches/features
+
+Task Assignments:
+
+View Static Menu
+-Blake Dejohn
+Adjust Inventory Stock
+-Sam Bush
+
+We were discussing certain issues we were running into with type declarations in typescript, and how sometimes we may not use typescript files when unnecessary for the ease of use.
+ Additionally, we discussed how we plan on splitting up the api endpoints to ensure we do not have redundant API endpoints and the endpoints make sense given their purpose. We discussed
+  how each of us completed our tasks and some insights we gained from completing our tasks to hopefully help each other in the future.
+

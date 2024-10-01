@@ -1,0 +1,995 @@
+# The Manager Page
+
+This page contains the functions that a manager may be interested in using. Some of these funcitons involve modifying the menu, managing inventory, and viewing reports.
+## Inventory Management
+The `InventoryManager` component is always displayed to the manager. This component 
+is populated by fetching the ingredient information from `api/inventory` in a `useEffect` statement.
+The GET endpoint is set up as follows:
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const result = await pool.query('SELECT * FROM ingredient ORDER BY \"ingredientID\" ASC;');
+        //console.log(result.rows);
+        //console.log(inventoryItems);
+        const inventoryItems = result.rows.map((row: any) => ({
+            ingredientID: row.ingredientID,
+            name: row.name,
+            stock: row.stock
+        }));
+        return new Response(JSON.stringify(inventoryItems), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (err) {
+        console.error(err);
+        return new Response(JSON.stringify({ message: "nooo" }),{status:500})
+    }
+}
+```
+This function returns all ingredients sorted by ingredientID. The table should display
+their stock value, and it is an editable field.
+### Editing Stock Values of Ingredients
+ By clicking the up/down arrows or modifying
+the value in the input, we can update the stock value of a given ingredient, which places a request
+to the PATCH endpoint of the API, which is structured as follows:
+```tsx showLineNumbers
+export async function PATCH(request:NextRequest) {
+    try {
+        const json = await request.json();
+        console.log(json, "is the json");
+        const result = await pool.query(
+            `UPDATE ingredient SET stock = $1 WHERE \"ingredientID\" = $2;`,
+            [json.stock, json.ingredientID]
+        );
+        console.log("Success!");
+        return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }),{status:500});
+    }
+}
+```
+After placing the PATCH request, the stock values are refetched, and the GUI is updated to reflect
+any changes made.
+
+### Deleting ingredients
+There is also a delete button associated with each ingredient. This button allows the user to
+delete an ingredient, and it places a DELETE request to the API. The DELETE endpoint is structured as follows:
+```tsx showLineNumbers
+export async function DELETE(request: NextRequest) {
+    const json = await request.json();
+    console.log(JSON.stringify(json))
+    const name = json.name;
+    const casc = json.casc;
+    console.log(casc)
+    let ingredientID = await pool.query("SELECT \"ingredientID\" FROM ingredient WHERE name =\'"+name+"\'");
+   // console.log(ingredientID.rows[0].ingredientID)
+    let foodIDList = await pool.query("SELECT \"foodID\" FROM foodIngredient WHERE \"ingredientID\" = \'"+ingredientID.rows[0].ingredientID+"\'");
+    try {
+        if(casc){
+            console.log("Cascading")
+            for(let i = 0; i < foodIDList.rows.length; i++){
+                console.log(foodIDList.rows[i])
+                await pool.query("DELETE FROM foodIngredient WHERE \"foodID\" = \'"+foodIDList.rows[i].foodID+"\'");
+            }
+        }
+        const result = await pool.query(
+            `DELETE FROM ingredient WHERE "name" = $1;`,
+            [name]
+        );
+        console.log("Success!");
+        return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    } catch (err) {
+        console.log("Uh oh big issue detected",err)
+        
+        
+        if(foodIDList.rows.length > 0){
+            
+            const foodNamesResult = await pool.query("SELECT name FROM food WHERE \"foodID\" IN (" + foodIDList.rows.map((row: any) => row.foodID).join(",") + ")");
+            const foodNamesList = foodNamesResult.rows.map((row: any) => row.name);
+            const mess = "Ingredient is used in food items: " + foodNamesList.join(", ");
+            console.log(mess)
+            return new Response(JSON.stringify({ message: mess }), {status: 501 });
+            
+        }
+        
+        return new Response(JSON.stringify({ message: err }), { status: 502 });
+    }
+}
+```
+In the case that an ingredient is a part of a certain menu item, it will warn the user that the ingredient is used
+in certain menu items. Upon confirmation, it will remove that ingredient from the recipe of its
+respective menu items.
+
+### Adding Ingredients
+Adding ingredients is fairly simple. Upon clicking the 'New Inventory Item' button on the bottom
+of the screen, a dialog will appear, prompting the user to input an ingredient name.
+After typing in a name and clicking the submit button, a POST request is placed to the inventory API.
+The POST request is set up as follows:
+```tsx showLineNumbers
+export async function POST(request: NextRequest) {
+    try {
+        const json = await request.json();
+        const highestIngredientIDResult = await pool.query('SELECT MAX("ingredientID") FROM ingredient;');
+        const highestIngredientID = highestIngredientIDResult.rows[0].max;
+        const newIngredientID = highestIngredientID + 1;
+        const result = await pool.query(
+            `INSERT INTO ingredient ("ingredientID", "name", "stock") VALUES ($1, $2, 0);`,
+            [newIngredientID, json.name]
+        );
+        console.log("Success!");
+        return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    } catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 500 });
+    }
+}
+```
+If the item is successfully added, the inventory items will be refetched, and the interface will reflect
+the change.
+## Viewing/Editing Menu
+The user can view and edit the menu items by clicking the respective button. Upon
+Clicking the button, the `fetchMenuItems() `function is called.
+```tsx showLineNumbers
+ const fetchMenuItems = async () => {
+
+        if (shownInterface != "menuItems") {
+            setShownInterface("menuItems");
+            updateMenuItems();
+        }
+        else {
+            setShownInterface("");
+        }
+    };
+```
+ This function sets the 
+`shownInterface` state to menuItems, indicating that is the view that must be shown.
+Additionally, it calls the `updateMenuItems()` function, which makes an API call to retrieve the menu items
+from the database.
+```tsx showLineNumbers
+  const updateMenuItems = async () => {
+        try { // Add error handling
+            const response = await fetch(`/api/menu?search=`, {
+                method: 'GET'
+            }); // Correct URL path
+            const json = await response.json(); // Await the JSON parsing 
+            setMenuItems(json);
+            //this filters for the name in the search bar
+            //console.log(json);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    }
+```
+This function takes the response from the api endpoint `/api/menu?search=` and sets the 
+`setMenuItems` state to the response. The API endpoint is set up to return all menu items
+as follows:
+```tsx showLineNumbers
+  export async function GET(request: Request) {
+    try {
+        const result = await pool.query('SELECT * FROM food where onmenu = 1 ORDER BY \"foodType\" ASC;');
+        const menuItems: FoodItem[] = result.rows.map((row: DbFoodRow) => ({
+            foodID: row.foodID, // Adjust column names if needed
+            name: row.name,
+            price: row.price,
+            foodType: row.foodType,
+            onmenu: row.onmenu,
+            startmonth: row.startmonth,
+            endmonth: row.endmonth,
+            temperature: row.temperature
+        }));
+        //console.log(menuItems);
+        return new Response(JSON.stringify(menuItems), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (err) {
+        console.error(err);
+        return new Response(JSON.stringify({ message: "nooo" }))
+    }
+}
+```
+From here, the menu items are displayed in a table, with the option to edit or delete
+any given item.
+
+### Deletion of an Item
+
+ By clicking the delete button, the `deleteItem` function is called, which takes
+a foodID as a parameter. This method sends a delete request to the backend, then updates the menuItems state.
+The method is as follows:
+```tsx showLineNumbers
+const deleteItem = async (foodID: number) => {
+        try { // Add error handling
+            console.log(foodID);
+            const response = await fetch(`api/menu?foodID=${foodID}`, {
+                method: 'DELETE'
+            }); // Correct URL path
+            const json = await response.json(); // Await the JSON parsing 
+
+            console.log(json);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+        updateMenuItems();
+    }
+```
+The endpoint to delete a given item requires a parameter of a foodID, and it is set up like so:
+
+```tsx showLineNumbers
+export async function DELETE(req: NextRequest) {
+    //console.log(req.nextUrl.searchParams.get('foodID'));
+    const result = await pool.query(`UPDATE food SET \"onmenu\" = 0 WHERE \"foodID\" = ${req.nextUrl.searchParams.get('foodID')} and onmenu = 1`);
+    console.log(result);
+    if(result){
+        return new Response(JSON.stringify({message:"Success"}),{status:200});
+    }
+    else{
+        return new Response(JSON.stringify({message:"Failure"}),{status:500});
+    }
+    // Use the postId here to fetch data or perform actions
+} 
+```
+This will cause a menu item to no longer appear on the customer,cashier, or static menu pages
+
+### Editing an Item
+To edit a given menu item, a user can click on an item's associated edit button, which will trigger 
+a Modal dialog containing a form to show the different fields that can be modified for a given item.
+This form stores the inputted data as a state variable callled `formData` that is structured as follows:
+```tsx showLineNumbers
+const [formData, setFormData] = useState<FoodItemFormData>(item ? {
+            foodID: item.foodID,
+            name: item.name,
+            price: item.price,
+            type: item.foodType,
+            start: item.start,
+            end: item.end,
+            newIngredients:[],
+            cutIngredients:[]
+        })
+```
+The fields of formData are named appropriately to represent the data they store.Upon making
+changes within the form, the handleChange function is called, storing the changes made.
+
+```tsx showLineNumbers
+const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+            // Handle general form changes (name, price, type)
+            if (event.target.name) { 
+                setFormData({ ...formData, [event.target.name]: event.target.value });
+            }
+    
+            // Handle ingredient checkbox changes
+            if (event.target.type === "checkbox" && event.target.name === "ingredients") {
+                const ingredient = event.target.value;
+                const isChecked = event.target.checked;
+                
+                if (isChecked) {
+                    setUncheckedIngredients(prevIngredients => prevIngredients.filter(i => i !== ingredient));
+                } else {
+                    console.log("updating uncehcked")
+                    setUncheckedIngredients([...uncheckedIngredients, ingredient]);
+                    setFormData({ ...formData, cutIngredients: uncheckedIngredients }); 
+                }
+            }
+        };
+```
+`formData` is a state variable within the MenuChangeForm component, and it tracks the data in the form,
+as the name suggests. Likewise, uncheckedIngredients stores the ingredients that were initially included
+in the menu item's recipe, but were unchecked, indicating they must be removed from the recipe. Upon submission
+of the form, the handleSubmit function is called, which makes a PUT request to the inventory API with the ingredient
+removals,then places a PATCH request with the name, category,new ingredient and price changes.
+ The PUT request is defined as follows:
+```tsx showLineNumbers
+export async function PUT(request: Request) {
+    try {
+        const json  = await request.json();
+        const name = json.name;
+        console.log(name)
+        const foodResult = await pool.query('SELECT \"foodID\" FROM food WHERE name = $1', [name]);
+        const foodID = foodResult.rows[0].foodID;
+
+        const result = await pool.query(`
+            SELECT i.\"ingredientID\", i.name, i.stock
+            FROM ingredient AS i
+            JOIN foodingredient AS fi ON i.\"ingredientID\" = fi.\"ingredientID\"
+            WHERE fi.\"foodID\" = $1
+        `, [foodID]);
+        const ingredients = result.rows.map((row: any) => ({
+            ingredientID: row.ingredientID,
+            name: row.name,
+            quantity: row.quantity
+        }));
+        console.log(foodID);
+        return new Response(JSON.stringify(ingredients), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (err) {
+        console.error(err);
+        return new Response(JSON.stringify({ message: "Error" }), { status: 500 });
+    }
+}
+```
+And the PATCH request is here:
+```tsx showLineNumbers
+export async function PATCH(request: Request) {
+    try {
+        const json = await request.json();
+        console.log(json);
+        if(json.newIngredients){
+            for (const ingredient of json.newIngredients){
+                const result = await pool.query(
+                    `INSERT INTO foodingredient (\"foodID\", \"ingredientID\", amount) VALUES ($1, $2, $3);`,
+                    [json.foodID, ingredient, 1]
+                );
+            }
+        }
+        //populate the sql query with data from json
+        
+        const result = await pool.query(
+            `UPDATE food SET name = $1, price = $2, \"foodType\" = $3, startMonth = $4, endMonth = $5 WHERE \"foodID\" = $6 and onmenu = 1;`,
+            [json.name, json.price, json.type, json.start, json.end, json.foodID] 
+        );
+                return new Response(JSON.stringify({ message: "Success" }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }));
+    }
+}
+```
+## Add a New Menu Item
+The user can add a new food item through the AddFoodForm that appears when clicking the 
+"Add New Food Item" button. This form takes a few different fields: name, price, category
+temperature, and the optional seasonal field that prompts for a start and end date. It also allows
+the user to input a recipe by adding each ingredient that the item is composed of. Upon submitting the form,
+the handleSubmit function is called, which places a POST request to '/api/menu' like so:
+```tsx showLineNumbers
+const handleSubmit = async(event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        try {
+            setFormData({ ...formData, items: recipe });
+            const response = await fetch('/api/menu', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          if (response.ok) {
+            // Successfully added food item. Handle success (e.g., clear form, display message)
+            setFormData({ name: '', price: 0, foodType:"", isSeasonal:false, startDate:null,endDate:null,items:[],temperature:''}); // Example: Reset form
+            setRecipe([]);
+          } else {
+            // Handle error from the server
+            console.error('Error adding food item:', await response.text());
+          }
+        } catch (error) {
+          console.error('Error submitting form:', error);
+        }
+      };
+```
+The POST endpoint for the menu route is also structured as follows:
+```tsx showLineNumbers
+export async function POST(request: Request) {
+    try {
+        const data = await request.json();
+
+        if (!data) {
+            return new Response(JSON.stringify({ message: "Bad request" }))
+        }
+        else {
+            // const sql_ID_statement = "SELECT MAX(\"foodID\") AS highest_id FROM food";
+            const re = await pool.query("SELECT MAX(\"foodID\") AS highest_id FROM food");
+            const highest = (re.rows[0].highest_id) + 1
+            let startDate = 0;
+            let endDate = 0;
+            if(data.startDate && data.endDate){
+                startDate = Number(data.startDate.replace(/-/g, ''));
+                endDate = Number(data.endDate.replace(/-/g, ''));
+            }
+           
+            const temp = data.temperature;
+            const result = await pool.query(
+                'INSERT INTO food (\"foodID\", name, price, \"foodType\",onmenu,startMonth,endMonth,temperature) VALUES  ($1, $2, $3, $4, $5, $6, $7,$8);',
+                [
+                    highest,
+                    data.name,
+                    data.price,
+                    data.foodType,
+                    1, // Set 'onmenu' as true for new items 
+                    startDate,
+                    endDate,
+                    temp
+                ]
+            );
+            const items = data.items;
+            
+           
+            for (const ingredientName of items) {
+                const ingredientResult = await pool.query('SELECT "ingredientID" FROM ingredient WHERE name = $1', [ingredientName]);
+                const ingredientID = ingredientResult.rows[0].ingredientID;
+                const result = await pool.query(
+                    `INSERT INTO foodingredient ("foodID", "ingredientID", amount) VALUES ($1, $2, $3);`,
+                    [highest, ingredientID, 1]
+                );
+            }
+            if (result) {
+                return new Response(JSON.stringify(result), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+            else {
+                return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+            }
+        }
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+## Viewing Past Orders
+Upon clicking the 'View Past Orders" button, the OrderView component is rendered. This component
+loads each order with its ID, items, total cost, time ordered, payment method, and there is also 
+an option to edit a given order. The component fetches the information of 50 past orders at a time, 
+in the following fashion:
+```tsx showLineNumbers
+const fetchData = async (page = 1,search = "") => {
+        const limit = 50; // Items per page
+        const offset = (page - 1) * limit;
+        if(search === "NaN"){
+            search = "";
+        }
+        try {
+            const response = await fetch(`/api/orders?limit=${limit}&offset=${offset}&searchQuery=${search}`, { method: "GET" });
+            const orders = await response.json(); // Type the response
+            setRows(orders);
+            setCurrentPage(page);
+            setOffset(offset);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    };
+```
+Additionally, the GET endpoint for the 'api/orders' route is set up as follows:
+```tsx showLineNumbers
+export async function GET(request: Request) {
+  try {
+    const limit = "50"
+    let offset = parseInt(new URL(request.url).searchParams.get('offset') || '0');
+    const searchQuery = parseInt(new URL(request.url).searchParams.get('searchQuery') || "");
+    const foodSearch = new URL(request.url).searchParams.get('searchQuery') || "";
+    console.log(foodSearch)
+    //if asked to search by foodID
+    if(searchQuery){
+      const stmt = "SELECT * FROM ticket where \"ticketID\" = $1 ORDER BY \"ticketID\" DESC";
+      const result = await pool.query(stmt, [searchQuery]);
+      const foodstmt = `
+      SELECT "ticketID", string_agg(quantity || 'x"' || name, ', ') AS items
+      FROM (
+          SELECT t."ticketID", f.name, COUNT(*) as quantity
+          FROM ticket t
+          JOIN foodticket tf ON $1 = tf."ticketID"
+          JOIN food f ON tf."foodID" = f."foodID"
+          GROUP BY t."ticketID", f.name
+          ORDER BY t."ticketID" DESC
+      ) AS ordered_tickets
+      GROUP BY "ticketID"
+      ORDER BY "ticketID" DESC
+      LIMIT 1 OFFSET 0;
+          `;
+      const foodsResult = await pool.query(foodstmt, [searchQuery]);
+      const ordersMap: Map<number, string[]> = new Map(); // A map to store orders by ticketI
+      let orderList: Order[] = []
+      //console.log(foodsResult.rows)
+      const foodItemsByTicket = {};
+      for (let i = 0; i < result.rows.length; i++) {
+        const row = result.rows[i];
+        // Assuming items for each ticket are aligned by index in foodsResult.rows
+        let t: Order = {
+          ticketID: row.ticketID,
+          items: foodsResult.rows[i].items.toString(),
+          timeOrdered: row.timeOrdered,
+          totalCost: row.totalCost,
+          payment: row.payment,
+        };
+        orderList.push(t);
+      }
+      return new Response(JSON.stringify(orderList), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    //if searching for a food gathering all the ID's
+    let stmt;
+    let result;
+    if(foodSearch){
+      stmt = `SELECT *
+      FROM ticket
+      WHERE "ticketID" IN (
+          SELECT t."ticketID"
+          FROM ticket t
+          JOIN foodticket tf ON t."ticketID" = tf."ticketID"
+          JOIN food f ON tf."foodID" = f."foodID"
+          WHERE f.name = $1
+      )
+      ORDER BY "ticketID" DESC
+      LIMIT $2 OFFSET $3;`
+      result = await pool.query(stmt, [foodSearch,limit, offset]);
+    }
+    else{
+      stmt = "SELECT * FROM ticket ORDER BY \"ticketID\" DESC LIMIT $1 OFFSET $2";
+      result = await pool.query(stmt, [limit, offset]);
+    }
+    //if it is a foodSearch instead
+    let foodstmt;
+    let foodsResult;
+    if(foodSearch){
+      foodstmt = `
+      SELECT "ticketID", string_agg(quantity || 'x' || name, ', ') AS items
+      FROM (
+          SELECT t."ticketID", f.name, COUNT(*) as quantity
+          FROM ticket t
+          JOIN foodticket tf ON t."ticketID" = tf."ticketID"
+          JOIN food f ON tf."foodID" = f."foodID"
+          WHERE t."ticketID" IN (
+              SELECT t2."ticketID"
+              FROM ticket t2
+              JOIN foodticket tf2 ON t2."ticketID" = tf2."ticketID"
+              JOIN food f2 ON tf2."foodID" = f2."foodID"
+              WHERE f2.name = $1
+          )
+          GROUP BY t."ticketID", f.name
+          ORDER BY t."ticketID" DESC
+      ) AS ordered_tickets
+      GROUP BY "ticketID"
+      ORDER BY "ticketID" DESC
+      LIMIT $2 OFFSET $3;
+        `;
+        foodsResult = await pool.query(foodstmt, [foodSearch,limit, offset]);
+    }
+    //if it isnt searching for a food
+    else{
+      foodstmt = `
+      SELECT "ticketID", string_agg(quantity || 'x' || name, ', ') AS items
+      FROM (
+          SELECT t."ticketID", f.name, COUNT(*) as quantity
+          FROM ticket t
+          JOIN foodticket tf ON t."ticketID" = tf."ticketID"
+          JOIN food f ON tf."foodID" = f."foodID"
+          GROUP BY t."ticketID", f.name
+          ORDER BY t."ticketID" DESC
+      ) AS ordered_tickets
+      GROUP BY "ticketID"
+      ORDER BY "ticketID" DESC
+      LIMIT $1 OFFSET $2;
+        `;
+        foodsResult = await pool.query(foodstmt, [limit, offset]);
+    }
+    const ordersMap: Map<number, string[]> = new Map(); // A map to store orders by ticketI
+    let orderList: Order[] = []
+    //console.log(foodsResult.rows)
+    const foodItemsByTicket = {};
+    for (let i = 0; i < result.rows.length; i++) {
+      const row = result.rows[i];
+      // Assuming items for each ticket are aligned by index in foodsResult.rows
+      let t: Order = {
+        ticketID: row.ticketID,
+        items: foodsResult.rows[i].items.toString(),
+        timeOrdered: row.timeOrdered,
+        totalCost: row.totalCost,
+        payment: row.payment,
+      };
+      orderList.push(t);
+    }
+    return new Response(JSON.stringify(orderList), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    console.error(err);
+    return new Response(JSON.stringify({ message: err }), { status: 501 })
+  }
+}
+```
+Although extensive, this GET endpoint is quite robust to cater for different purposes.
+The 'searchQuery' parameter is included so the user can search within the past orders
+for orders containing a certain item. The 'limit' and offset 'parameters' enable pagination
+for the component, and it helps us display different sets of orders. We can also input an orderID
+to search for, and the table will update to show that particular order.
+
+### Editing an order
+Upon clicking the edit button for a particular order, a modal dialog will open. This dialog
+contains an OrderForm component that displays the current items their quantities,
+the price of the order, and the payment method of the order. The user can modify any of these fields,
+and after editing their desired parameters, a PATCH request is placed to the 'api/orders' endpoint,
+which is set up like so:
+```tsx showLineNumbers
+export async function PATCH(request: Request){
+try {
+    interface MenuItem {
+      name: string;
+      quantity: number;
+    }
+    interface CurrentMenuItem {
+      name: string;
+    }
+    const json = await request.json();
+    const ticketID = json.ticketID;
+    const items = json.items;
+    const timeOrdered = json.timeOrdered;
+    const totalCost = json.totalCost;
+    const payment = json.payment;
+    console.log(ticketID,items,totalCost);
+    //const {ticketID, items, timeOrdered, totalCost, payment } = await request.json();
+    const stmt = `
+      UPDATE ticket
+      SET "timeOrdered" = $2, "totalCost" = $3, payment = $4
+      WHERE "ticketID" = $1
+    `;
+    await pool.query(stmt, [ticketID, timeOrdered, totalCost, payment]);
+    const itemsTyped = items as MenuItem[];
+    const currentMenuItems = await pool.query(`
+      SELECT f.name
+      FROM food f
+      JOIN foodticket ft ON ft."foodID" = f."foodID"
+      WHERE ft."ticketID" = $1
+    `, [ticketID]);
+    
+    let newItems:MenuItem[] = []
+    let goneItems:object[]=[]
+    for (let i = 0; i < itemsTyped.length; i++) {
+      const item = itemsTyped[i];
+      if (!currentMenuItems.rows.some((row:CurrentMenuItem) => row.name === item.name)) { // Compare 'name' property
+        
+        newItems.push(item);
+      }
+    }
+    
+    for (let i = 0; i < currentMenuItems.rows.length; i++) {
+      const currentItem = currentMenuItems.rows[i].name;
+      if (!itemsTyped.some((item) => item.name === currentItem)) { // Compare 'name' property
+        goneItems.push(currentItem);
+      }
+    }
+    
+    for (let i = 0; i < goneItems.length; i++) {
+      const itemName = goneItems[i];
+      await pool.query(`
+        DELETE FROM foodticket
+        WHERE "ticketID" = $1 AND "foodID" IN (
+          SELECT "foodID" FROM food WHERE name = $2
+        )
+      `, [ticketID, itemName]);
+    }
+    for (let i = 0; i < newItems.length; i++) {
+      const itemName = newItems[i].name;
+      const foodIDResult = await pool.query('SELECT \"foodID\" FROM food WHERE name = $1;', [itemName]);
+      const foodID = foodIDResult.rows[0].foodID;
+      await pool.query(`
+        INSERT INTO foodticket ("ticketID", "foodID", amount)
+        VALUES ($1, $2, $3)
+      `, [ticketID, foodID, newItems[i].quantity]);
+    }
+    return new Response(JSON.stringify({ message: "Ticket updated successfully" }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    console.error(err);
+    return new Response(JSON.stringify({ message: err }), { status: 500 });
+  }
+}
+
+```
+This endpoint updates the basic fields like totalCost,timeOrdered, and price. Then, it updates
+the join table relations with the food table where necessary, based on modifications made to the items of an order.
+## Commonly Ordered Pairs
+Upon clicking the 'View Commonly Ordered Pairs' button, a dialog appears for the user
+to input a start date and an end date. This is so we can narrow down the search space
+to understand the commonly ordered pairs in a certain time window. After inputting valid dates, 
+the user must click the 'Search' button to load the commonly ordered pairs data, placing a request
+to 'api/commonPairs' endpoint. The data is then formatted into a table that shows the most common
+item pairs in order of descreasing frequency. The GET endpoint for the commonPairs route is
+set up as follows:
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+
+        // Extracting specific parameters
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+
+
+        if (startDate && endDate) {
+            const stmt = `
+            SELECT 
+                ft1."foodID" AS FoodID1,
+                f1.name AS FoodName1,
+                ft2."foodID" AS FoodID2,
+                f2.name AS FoodName2,
+                COUNT(*) AS TimesSoldTogether
+            FROM foodTicket ft1
+            INNER JOIN foodTicket ft2 ON ft1."ticketID" = ft2."ticketID" AND ft1."foodID" < ft2."foodID"
+            INNER JOIN ticket t ON ft1."ticketID" = t."ticketID"
+            INNER JOIN food f1 ON ft1."foodID" = f1."foodID"
+            INNER JOIN food f2 ON ft2."foodID" = f2."foodID"
+            WHERE t."timeOrdered" BETWEEN $1 AND $2
+            GROUP BY ft1."foodID", f1.name, ft2."foodID", f2.name
+            ORDER BY TimesSoldTogether DESC;`;
+            const result = await pool.query(stmt, [startDate, endDate]);
+
+            if (result) {
+                return new Response(JSON.stringify(result), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+
+                });
+
+            }
+            else {
+
+                return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+            }
+        }
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+
+This outputs common item pairs and their frequencies.
+
+## View Sales Report
+Similar to the Commonly Ordered Pairs report, the view sales report takes in two dates
+as parameters. After inputting two valid dates, the user must click the search button.
+This places a GET request to the 'api/salesReport' endpoint, and displays the infromation intuitively.
+The endpoint is set up as follows:
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+
+        // Extracting specific parameters
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+
+
+        if (startDate && endDate) {
+            const stmt = `
+            SELECT
+                f."foodID",
+                f.name,
+                COUNT(ft."foodID") AS food_usage,
+                ROUND(CAST(SUM(f.price) as numeric), 2) AS revenue
+            FROM
+                food f
+            LEFT JOIN (
+                SELECT 
+                    ft."foodID",
+                    ft."ticketID",
+                    ft.amount
+                FROM 
+                    foodticket ft
+                JOIN 
+                    ticket t ON ft."ticketID" = t."ticketID"
+                WHERE
+                    t."timeOrdered" BETWEEN $1 AND $2
+            ) AS ft ON f."foodID" = ft."foodID"
+            GROUP BY
+                f."foodID", f.name
+            ORDER BY
+                "foodID" ASC;
+                `
+            const result = await pool.query(stmt, [startDate, endDate]);
+
+            if (result) {
+                return new Response(JSON.stringify(result), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+
+                });
+
+            }
+            else {
+
+                return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+            }
+        }
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+This endpoint returns menu items with their ID, name, total item sales, and total revenue, in order
+of decreasing total item sales.
+
+## View Excess Report
+After clicking the view excess report button, the view sales report takes in one date, and the excess report will display the ingredients
+that are in excess from that date to the current date. This is done by placing a GET request 
+to the excessReport endpoint, which is set up as follows:
+```tsx showLineNumbers
+export async function GET(request: Request) {
+    try {
+        const parsedUrl = new URL(request.url);
+        const searchParams = parsedUrl.searchParams;
+
+        // Extracting specific parameters
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+
+
+        if (startDate && endDate) {
+            const stmt = `
+                SELECT 
+                    i."ingredientID",
+                    i."name",
+                    SUM(fi.amount * ft.amount) AS ingredient_usage
+                FROM 
+                    ticket t
+                JOIN 
+                    foodTicket ft ON t."ticketID" = ft."ticketID"
+                JOIN 
+                    foodIngredient fi ON ft."foodID" = fi."foodID"
+                JOIN 
+                    ingredient i ON fi."ingredientID" = i."ingredientID"
+                WHERE 
+                    t."timeOrdered" BETWEEN $1 AND $2
+                GROUP BY 
+                    i."ingredientID", i.name, i.stock
+                HAVING 
+                    SUM(fi.amount * ft.amount) < 0.1 * i.stock;`;
+            const result = await pool.query(stmt, [startDate, endDate]);
+
+            if (result) {
+                return new Response(JSON.stringify(result), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+
+                });
+
+            }
+            else {
+
+                return new Response(JSON.stringify({ message: "Bad addition" }), { status: 500 });
+            }
+        }
+    }
+    catch (err) {
+        console.log(err);
+        return new Response(JSON.stringify({ message: err }), { status: 502 })
+    }
+}
+```
+This endpoint returns ingredients with their ID, name, and the amount of that ingredient
+that was sold. It shows only ingredients that are not being sold sufficiently relative to the current
+stock on hand.
+
+## View Product Usage Chart
+After clicking the view product usage chart button, there appears a dialog to input a start date, end date,
+and ingredient to track. After inputting information for each of these fields. The user must click the
+'Load Chart!' button. This will place an API request to the 'api/productUsage' endpoint, which is set up as follows:
+
+```tsx showLineNumbers
+
+export async function POST(req:NextRequest){
+        // gets all foods with the ingredient
+        try{
+            const json = await req.json()
+            
+            const interval:number = json.interval;
+            const startDay:string = "\'"+ json.startDay + "\'";
+            const endDate:string = "\'"+ json.endDate+ "\'";
+            const sql = "SELECT \"ingredientID\" FROM ingredient WHERE name =\'"+json.ingredient+"\'";
+            console.log(sql);
+            const ingredientID = await pool.query(sql);
+            console.log(ingredientID.rows[0].ingredientID);
+            let foodIDList = await pool.query("SELECT \"foodID\" FROM foodIngredient WHERE \"ingredientID\" = \'"+ingredientID.rows[0].ingredientID+"\'");
+            // gets all foodIDs with the ingredient
+            const data: { name: string; usage: number }[] = []; 
+
+            let currentDate = new Date(startDay);
+            let weekNum = 1;
+            while (currentDate <= new Date(endDate)) {
+                const formattedDate = format(currentDate, 'yyyy-MM-dd');
+                const weekStart = format(currentDate, 'yyyy-MM-dd');
+                let totalUsage = 0;
+                for (let i = 0; i < foodIDList.rows.length; i++) {
+                const foodID = foodIDList.rows[i].foodID;
+                const nextDate = getFutureDate(formattedDate, interval);
+                const foodSoldQuery = `SELECT COUNT(*) AS ticket_count
+                    FROM ticket 
+                    JOIN foodTicket ON ticket."ticketID" = foodTicket."ticketID"
+                    WHERE foodTicket."foodID" = ${foodID} 
+                    AND ticket."timeOrdered" BETWEEN '${formattedDate}' AND '${nextDate}' 
+                `;
+                const foodSold = await pool.query(foodSoldQuery);
+                totalUsage+= Number(foodSold.rows[0].ticket_count);
+                }
+                data.push({
+                    name: `${weekStart.substring(5,weekStart.length)}`, // Or customize the label
+                    usage: totalUsage,
+                  });
+                currentDate = addDays(currentDate, interval);
+                weekNum+=1;
+            }
+
+             return new Response(JSON.stringify(data), {status: 200, headers: {'Content-Type': 'application/json'}});
+        }
+        catch(error){
+            return new Response(JSON.stringify(error), {status: 502, headers: {'Content-Type': 'application/json'}});
+
+        }        
+} 
+```
+This query works by first acquiring all food items that use the ingredient chosen, then
+obtaining sales records for those items. Then, the ProductUsageChart formats the information using
+the 'recharts' library. The data is in the form of week numbers associated with sales numbers, and 
+each week is a data point.
+
+## Restock Report
+This function works by pulling all ingredients and then filtering the ingredients to those that have less than 20 stock and only displaying them
+It also updates every 2 seconds in case their are stock changes to the database
+```tsx
+const RestockReport = () => {
+    const [results, setResults] = useState<IngredientUsage[]>([]);
+    const columns = ["Ingredient ID", "Ingredient Name", "Stock"];
+
+    const fetchInventoryItems = async () => {
+        try {
+            const response = await fetch('/api/inventory'); // Replace with your API endpoint
+            const data = await response.json();
+            setResults(data);
+        } catch (error) {
+            console.error('Error fetching inventory items:', error);
+        }
+    };
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchInventoryItems();
+        }, 2000);
+        fetchInventoryItems();
+    }, []);
+
+
+
+    return (
+        <div>
+            {results.length > 0 && (
+                <Table aria-label="Example table with dynamic content">
+                    <TableHeader>
+                        {columns.map((column) => (
+                            <TableColumn key={column}>{column}</TableColumn>
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {results.filter((item) => item.stock < 20).map((item) => (
+
+                            <TableRow key={item.ingredientID}>
+                                <TableCell>{item.ingredientID}</TableCell>
+                                <TableCell>{item.name} </TableCell>
+                                <TableCell>{item.stock}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
+        </div>
+    );
+};
+```
+
+
+
+
+
+

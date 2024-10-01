@@ -1,0 +1,65 @@
+SCRUM Meeting 4 for Rev’s POS:
+Prepared by: Shantanu Raghavan
+Meeting Date: 04/08/2024
+Meeting Attendees
+Sam Bush
+Dong Ha Cho
+Blake Dejohn
+Nicholas Petersilge
+Shantanu Raghavan 
+
+Meeting Agenda Items
+-Forecast for sprint completion
+-Clarify division of labor
+
+Accomplishments:
+Some manager functionalities added
+
+
+Tasks:
+1. Cashier Page
+
+- [ ] Task: Design frontend interfaces for item display
+- [ ] Task: Design frontend interfaces for adding items
+- [ ] Task: Design frontend interfaces to view and modify current order
+- [ ] Task: Add POST request to update database with new order
+
+2. Third-Party APIs
+- [ ] Task: Implement Google OAuth for logging in to different profiles.
+- [ ] Task: Implement weather API to display weather on customer self-checkout page.
+- [ ] Task: Implement translation API to translate self-checkout page
+ 
+3. Manager page
+
+- [x] Task: Create frontend interface for manager to modify menu items
+- [x] Task: Create API calls from frontend to update menu item
+- [x] Task: Create frontend interface for manager to create a new menu item
+- [x] Task: Create API calls from frontend to update database with inputted data
+- [ ] Task: Create API calls from frontend to fetch inventory stock data
+- [ ] Task: Use fetched data from API to update GUI to stock data
+- [ ] Task: Create API calls from frontend to update inventory stock data
+- [ ] Task: Create frontend design for manager to view a visualized representation of excess ingredient usage data
+- [ ] Task: Create API calls from the frontend to fetch excess ingredient usage data
+- [ ] Task: Use fetched data from API to create a visualization of excess ingredient usage data
+- [ ] Task: Create frontend design for manager to view a visualization of commonly ordered item pairs
+- [ ] Task: Create API calls from frontend to fetch commonly ordered pairs data
+- [ ] Task: Use fetched data from API to create a visualization of commonly ordered item pairs data
+
+4. Previous Sprint Backlog:
+- [ ] Task: Develop the PATCH endpoint to update inventory stock after order placement.
+- [x] Task: Develop the POST endpoint for submitting new orders.
+
+Before The Next Meeting
+Plans:
+Make considerable progress, try and finish before next meeting
+Communicate roadblocks
+
+
+Length:15 minutes
+Minutes:
+Many members of the group were busy and couldn't work until now, so it is understandable
+that we do not have much progress. We clarified task assignments, discussed feasability,
+and concluded with a discussion about the final demo.
+
+
+

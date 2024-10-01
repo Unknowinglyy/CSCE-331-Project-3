@@ -1,0 +1,126 @@
+# The Cashier Page
+
+This page is designed for the cashier role, enabling efficient management and finalization of orders. It includes functionalities for item selection, quantity adjustment, and order processing.
+
+## Overview
+
+The Cashier Page component facilitates the full lifecycle of an order from item selection to submission. It interacts with a backend API to fetch available menu items and handles user inputs for adjusting quantities and finalizing orders.
+
+## Functionalities
+
+### Fetching Menu Items
+
+This function asynchronously fetches available menu items from the server. Filters the received items to ensure they have essential properties (name and price). Initializes the order input quantities for each item to facilitate adding and removing items from the order.
+
+```tsx showLineNumbers
+const fetchMenuItemsForCashier = async () => {
+    try {
+        const response = await fetch('/api/inStockFoods', { method: 'GET' });
+        const json = await response.json();
+        const validatedItems = json.filter(item => item.name && item.price != null);
+        setMenuItems(validatedItems);
+        const initialQuantities = {};
+        validatedItems.forEach(item => {
+            initialQuantities[item.name] = { add: 1, remove: 1 };
+        });
+        setInputQuantities(initialQuantities);
+    } catch (error) {
+        console.error("Error fetching menu items:", error);
+    }
+};
+```
+### Modifying Item Quantities
+
+The cashier can adjust the quantity of items to be added to or removed from the order through input fields associated with each item.
+
+```tsx showLineNumbers
+const handleQuantityChange = (itemName, quantity, action) => {
+    setInputQuantities(currentQuantities => ({
+        ...currentQuantities,
+        [itemName]: {
+            ...currentQuantities[itemName],
+            [action]: Math.max(quantity, 0)
+        }
+    }));
+};
+```
+### Adding Items to the Order
+
+This function adds specified quantities of an item to the order. If the item already exists in the order, it increments the existing quantity. Otherwise, it adds a new entry to the order.
+
+```tsx showLineNumbers
+const addToOrder = (item, quantity) => {
+    setOrder(currentOrder => {
+        const itemIndex = currentOrder.findIndex(oi => oi.name === item.name);
+        if (itemIndex > -1) {
+            return currentOrder.map((oi, idx) =>
+                idx === itemIndex ? { ...oi, quantity: oi.quantity + quantity } : oi
+            );
+        } else {
+            return [...currentOrder, { ...item, quantity }];
+        }
+    });
+};
+```
+
+### Removing Items from the Order
+
+This function removes items from the order by reducing the quantity. If the quantity drops to zero or below, the item is removed from the order.
+
+```tsx showLineNumbers
+const removeFromOrder = (itemName, quantity) => {
+    setOrder(currentOrder => currentOrder.reduce((acc, item) => {
+        if (item.name === itemName) {
+            const newQuantity = item.quantity - quantity;
+            if (newQuantity > 0) {
+                acc.push({ ...item, quantity: newQuantity });
+            }
+        } else {
+            acc.push(item);
+        }
+        return acc;
+    }, []));
+};
+```
+
+### Finishing the Order
+
+This function finalizes the order by sending it to the backend API for processing. Clears the order state upon completion. Logs the expanded order to the console.
+
+```tsx showLineNumbers
+const finishOrder = async() =>{
+    console.log(order);
+    const expandedOrder = order.flatMap(item => Array.from({ length: item.quantity }, () => item));
+    console.log(expandedOrder);
+    try{
+        const response = await fetch('api/addOrder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(expandedOrder)
+        });
+    }
+    catch(error){
+        console.error(error);
+    }
+        
+    setOrder([]);
+} 
+```
+
+### Cancelling the Order
+
+This function cancels the current order and resets the order state array. This function is triggered by a user action to cancel the order and prevents submission.
+
+```tsx showLineNumbers
+const cancelOrder = () => setOrder([]);
+```
+
+### Calculating the total price of the order
+
+Calculates and returns the total price of all items in the order. This function iterates over the order array, multiplying each item's price by its quantity and summing the results.
+
+```tsx showLineNumbers
+const totalPrice = order.reduce((acc, item) => acc + item.price * item.quantity, 0);
+```

@@ -1,0 +1,150 @@
+.managerButton {
+    height: 100px;
+    width: 200px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+
+.bin-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    border-radius: 15px;
+    background-color: rgb(255, 95, 95);
+    cursor: pointer;
+    transition-duration: 0.3s;
+}
+
+.bin-bottom {
+    width: 15px;
+}
+
+.bin-top {
+    width: 17px;
+    transform-origin: right;
+    transition-duration: 0.3s;
+}
+
+.bin-button:hover .bin-top {
+    transform: rotate(45deg);
+}
+
+.bin-button:hover {
+    background-color: rgb(255, 0, 0);
+}
+
+.bin-button:active {
+    transform: scale(0.9);
+}
+
+menu-table {
+    border-collapse: separate;
+    border-spacing: 10px;
+}
+
+td,
+th {
+    padding: 5px;
+}
+
+.input {
+    padding: 4px;
+    border-color: 3px solid black;
+}
+
+.tableContainer {
+    background-color: #f5f5f5;
+    /* Light grey background */
+    padding: 10px;
+    border-radius: 8px;
+    margin-left:10px;
+}
+
+/* Adding more specific selectors for table and cells */
+.tableContainer .nextui-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.tableContainer .nextui-table th,
+.tableContainer .nextui-table td {
+    border: 3px solid black !important;
+    /* Light grey borders */
+    padding: 8px;
+    text-align: left;
+}
+.dropdown-menu {
+    max-height: 300px; /* Adjust the height as needed */
+    overflow-y: auto;  
+}
+.managerMain{
+    /* Basic dimensions and centering */
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+  
+    /* Dark mode colors and gradient */
+    background: #121212; /* Fallback for browsers that don't support gradients */
+    background: linear-gradient(
+      135deg,
+      #121212 25%,
+      #1a1a1a 25%,
+      #1a1a1a 50%,
+      #121212 50%,
+      #121212 75%,
+      #1a1a1a 75%,
+      #1a1a1a
+    );
+    background-size: 40px 40px;
+  
+    /* Animation */
+    animation: move 4s linear infinite;
+  }
+  
+  @keyframes move {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 40px 40px;
+    }
+  }
+  .navButton {
+    display: inline-block;
+    padding: 0.9rem 1.8rem;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    border: 3px solid rgb(252, 70, 100);
+    cursor: pointer;
+    position: relative;
+    background-color: transparent;
+    text-decoration: none;
+    overflow: hidden;
+    z-index: 1;
+    font-family: inherit;
+   }
+   
+    .navButton::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(252, 70, 100);
+    transform: translateX(-100%);
+    transition: all .3s;
+    z-index: -1;
+   }
+   
+   .navButton:hover::before {
+    transform: translateX(0);
+   }
+   
+  
+  

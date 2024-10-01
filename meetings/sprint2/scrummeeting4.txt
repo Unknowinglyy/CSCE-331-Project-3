@@ -1,0 +1,70 @@
+SCRUM Meeting 4 for Rev’s POS:
+Prepared by: Shantanu Raghavan
+Meeting Date: 04/01/2024
+Meeting Attendees
+Sam Bush
+Dong Ha Cho
+Blake Dejohn
+Nicholas Petersilge
+Shantanu Raghavan 
+
+Meeting Agenda Items
+-New Sprint Expectations
+
+Accomplishments:
+Sprint 1 Complete
+
+
+Tasks:
+1. Cashier Page
+
+- [ ] Task: Design frontend interfaces for item display
+- [ ] Task: Design frontend interfaces for adding items
+- [ ] Task: Design frontend interfaces to view and modify current order
+- [ ] Task: Add POST request to update database with new order
+
+2. Third-Party APIs
+- [ ] Task: Implement Google OAuth for logging in to different profiles.
+- [ ] Task: Implement weather API to display weather on customer self-checkout page.
+- [ ] Task: Implement translation API to translate self-checkout page
+ 
+3. Manager page
+
+- [ ] Task: Create frontend interface for manager to modify menu items
+- [ ] Task: Create API calls from frontend to update menu item
+- [ ] Task: Create frontend interface for manager to create a new menu item
+- [ ] Task: Create API calls from frontend to update database with inputted data
+- [ ] Task: Create API calls from frontend to fetch inventory stock data
+- [ ] Task: Use fetched data from API to update GUI to stock data
+- [ ] Task: Create API calls from frontend to update inventory stock data
+- [ ] Task: Create frontend design for manager to view a visualized representation of excess ingredient usage data
+- [ ] Task: Create API calls from the frontend to fetch excess ingredient usage data
+- [ ] Task: Use fetched data from API to create a visualization of excess ingredient usage data
+- [ ] Task: Create frontend design for manager to view a visualization of commonly ordered item pairs
+- [ ] Task: Create API calls from frontend to fetch commonly ordered pairs data
+- [ ] Task: Use fetched data from API to create a visualization of commonly ordered item pairs data
+
+4. Previous Sprint Backlog:
+- [ ] Task: Develop the PATCH endpoint to update inventory stock after order placement.
+- [] Task: Develop the POST endpoint for submitting new orders.
+
+Before The Next Meeting
+Plans:
+Make progress on tasks
+TASK ASSIGNMENTS: 
+Dong Ha: Cashier page,polish current self-checkout page interface
+Blake: implement google OAuth and login functionality for manager page/ customer page 
+Nico: Order updating DB, integrate external APIs like translation and weather
+Sam: Implement Manager functionalities like excess order report, commonly ordered pairs
+Shantanu: Implement manager functionalities like delete order, edit menu items, and help whenever necessary
+-Sam Bush
+
+Length: 20 minutes
+Minutes:
+Since we had just finished sprint 1, we were discussing how we completed a considerable
+amount of work. We were realizing that we are a lot more efficient than we had anticipated,
+so we will assign more tasks this sprint. Some members will not be able to work for the first
+week due to other commitments.
+
+
+

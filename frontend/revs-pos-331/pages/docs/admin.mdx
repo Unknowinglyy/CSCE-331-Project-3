@@ -1,0 +1,221 @@
+# The Admin Page
+
+This page is for the administrators of the site. Within it, you can create new users for the application, view all the currently approved users, and edit the information of any user.
+
+## Creating a New User
+Here lies the main function that provides the functionality to add a new user to the system. The function `addUser` is called when the create user form is submitted on the admin page. The function first checks if the fields are empty and then sends a POST request (using axios) to the server to add the user. If the user is added successfully, the function will sort the users by name and permissions level, reset the user fields, and show a success message.
+
+Following this code will be the API route that the function sends the POST request to.
+```tsx showLineNumbers
+async function addUser(event: FormEvent) {
+    //prevent the page from refreshing
+    event?.preventDefault();
+    //check if the fields are empty
+    if (!userName.trim() || !userEmail.trim()) {
+      return alert("Please fill out all fields");
+    }
+    //make sure all fields are filled out
+    if (userName && userEmail && userPermissions) {
+      const response = await axios.post("../api/addUser", {
+        userName,
+        userEmail,
+        userPermissions,
+      });
+      //if the user is added successfully
+      if (response.status === 200) {
+        //sort the users by name and permissions level
+        setUsers((prevUsers) =>
+          [...prevUsers, response.data].sort((a, b) => {
+            const nameComparison = a.name.localeCompare(b.name);
+            if (nameComparison !== 0) {
+              return nameComparison;
+            }
+            return b.permissions - a.permissions;
+          })
+        );
+        //reset the user fields
+        setUserName("");
+        setUserEmail("");
+        setUserPermissions(1);
+        //show a success message
+        toast.success("User added successfully", {
+          position: "top-center",
+          autoClose: 2000,
+        });
+      }
+    }
+  }
+```
+
+### The API Route for Adding a User
+This is the API route that the `addUser` function sends a POST request to. The route takes in the user's name, email, and permission level. The route then adds the user to the database and returns the user object. This API request uses Prisma to interact with the database. (Note: Prisma was used in our project to interact with our database. It was used here to create a users object. Within this users object, we have fields for the user's name, email, and permissions level.)
+
+```tsx showLineNumbers
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from '../../lib/prisma';
+
+export async function POST (request: NextRequest){
+    const {userName, userEmail, userPermissions} = await request.json()
+    const newUser = await prisma.users.create({
+        data:{
+            name: userName,
+            email: userEmail,
+            permissions: Number(userPermissions)
+        }
+    })
+    return NextResponse.json(newUser)
+}
+```
+
+## Viewing All Users
+
+This section of the admin page displays all the users currently in the system. The `getUsers` function sets the state of a users array with all the users in the database. The users within this array are sorted by name (and if the name is the same since the same user can have multiple emails, it then sorts by permission level). The users are displayed in a table format, with each user's name, email, and permissions level shown. The table also includes buttons to edit or delete each user.
+
+```tsx showLineNumbers
+async function getUsers() {
+      const response = await axios.get("../api/getUsers");
+      setUsers(
+        response.data.sort((a: users, b:users) => {
+          const nameComparison = a.name.localeCompare(b.name);
+          if (nameComparison !== 0) {
+            return nameComparison;
+          }
+          //sort by permissions level if same name(want admin first then manager then cashier then customer)
+          return (b.permissions || 1) - (a.permissions || 1);
+        })
+      );
+    }
+```
+
+### The API Route for Getting all Users
+
+This is the API route that the `getUsers` function sends a GET request to. The route retrieves all the users from the database and returns them as an array of user objects. This API request also uses Prisma to interact with the database. With the findMany method, prisma looks for all the users that match its schema and returns them as an array of user objects.
+
+```tsx showLineNumbers
+import { NextResponse } from 'next/server';
+import { prisma } from '../../lib/prisma';
+
+export async function GET(){
+    const users = await prisma.users.findMany();
+    return NextResponse.json(users);
+}
+```
+
+## Editing a User
+This section of the admin page allows the administrator to edit a user's information. The function `updateUser` is called when the edit user form is submitted. The function first checks if the email field is empty and if the user exists. If the user exists, the function sends a PUT request (using axios) to the server to update the user's information. If the user does not input a new name, the old name is kept. This is not the case for their email or permissions level as they are required fields. If the user is updated successfully, the function will update the users state with the updated user information, reset the updated fields, and show a success message.
+
+```tsx showLineNumbers
+async function updateUser(
+    event: FormEvent,
+    email: string,
+    name: string,
+    permissions: string
+  ) {
+    //prevent the page from refreshing
+    event.preventDefault();
+    //check if the email is empty
+    if (!email.trim()) {
+      alert("Please enter an email");
+      return;
+    }
+    //find the user in the users array
+    const oldUser = users.find((user: users) => user.email === email);
+    //checking if the user exists
+    if (!oldUser) {
+      alert("User does not exist");
+      return;
+    }
+    //get the old name of the user
+    const oldName:string = oldUser.name;
+    //make the put request
+    const response = await axios.put("../api/updateUser", {
+      email,
+      name: name.trim() ? name : oldName,
+      permissions,
+    });
+    //if the user is updated successfully
+    if (response.status === 200) {
+      //update the users state with the updated user information
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user.email === email ? response.data : user))
+      );
+      //reset the updated fields
+      setUpdatedName("");
+      setUpdatedPermissions("1");
+      toast.success("User updated successfully");
+    }
+  }
+```
+
+### The API Route for Updating a User
+The API route that the `updateUser` function sends a PUT request to. The route takes in the user's email, name, and permission level. The route then updates the user's information in the database and returns the updated user object. This API request also uses Prisma to interact with the database. The Prisma update method finds the user by their unique email and updates their name and permissions level with the new information.
+
+```tsx showLineNumbers
+export async function PUT(request: NextRequest){
+    const body = await request.json();
+    const userEmail = body.email;
+    const userName = body.name || null;
+    const userPermissions = body.permissions;
+
+    if(!userEmail){
+        console.log("No email provided, cannot update user");
+        return NextResponse.error();
+    }
+    const updatedUser = await prisma.users.update({
+        where: {
+            email: userEmail
+        },
+        data:{
+            name: userName,
+            permissions: Number(userPermissions)
+        }
+    })
+    return NextResponse.json(updatedUser);
+}
+```
+
+## Deleting a User
+To delete a user, you only need to provide the user's email. The `deleteUser` function is called when the delete user form is submitted. The function first checks if the email field is empty. If the email is not empty, the function sends a DELETE request (using axios) to the server to delete the user. If the user is deleted successfully, the function will update the users state to exclude the deleted user, reset the email that points to the to be deleted user, and show a success message.
+
+```tsx showLineNumbers
+async function deleteUser(email: string) {
+    //check if the email is empty
+    if (!email.trim()) {
+      alert("Cannot delete user with no email");
+      return;
+    }
+    //make the delete request
+    const response = await axios.delete("../api/deleteUser", {
+      data: { userEmail: email },
+    });
+    //if the user is deleted successfully
+    if (response.status === 200) {
+      //update the users state to exclude the deleted user
+      setUsers((prevUsers) => prevUsers.filter((user) => user.email !== email));
+      //reset the emailToDelete state
+      setEmailToDelete("");
+      //show a success message
+      toast.success("User deleted successfully", {
+        position: "top-center",
+        autoClose: 2000,
+      });
+    }
+  }
+```
+
+### The API Route for Deleting a User
+Deleting a user is a simple process. The route takes in the user's email and deletes the user from the database. This API request also uses Prisma to interact with the database. The Prisma delete method works similarly to the update method. It finds the user by their unique email and then deletes them from the database.
+```tsx showLineNumbers
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from '../../lib/prisma';
+
+export async function DELETE (request: NextRequest){
+    const {userName, userEmail, userPermissions} = await request.json()
+    const deletedUser = await prisma.users.delete({
+        where: {
+            email: userEmail
+        }
+    })
+    return NextResponse.json(deletedUser);
+}
+```

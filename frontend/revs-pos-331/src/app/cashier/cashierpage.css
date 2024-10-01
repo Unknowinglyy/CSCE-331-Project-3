@@ -1,0 +1,218 @@
+.cashier-container {
+    display: flex;
+    flex-direction: row; 
+    padding: 10px;
+    align-items: flex-start; 
+    background: #121212; /* Fallback for browsers that don't support gradients */
+    background: linear-gradient(
+      135deg,
+      #121212 25%,
+      #1a1a1a 25%,
+      #1a1a1a 50%,
+      #121212 50%,
+      #121212 75%,
+      #1a1a1a 75%,
+      #1a1a1a
+    );
+    background-size: 40px 40px;
+  
+    /* Animation */
+    animation: move 4s linear infinite;
+}
+@keyframes move {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 40px 40px;
+    }
+  }
+.title-and-summary {
+    display: flex;
+    flex-direction: column;
+    width: 400px; 
+    margin-right: 20px;
+    padding-top: 0;
+    margin-top: 0;
+}
+
+.menu-list {
+    display: flex;
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+    flex-grow: 1; 
+}
+
+.menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin: 10px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    padding: 10px;
+    width: 230px;
+    height: 130px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    color: black;
+    transition: background-color 0.3s ease;
+}
+
+.menu-item-controls {
+    display: flex;
+    width: 100%;
+    justify-content: space-between; 
+    margin-top: 0px;
+}
+
+.menu-item-controls div {
+    display: flex;
+    align-items: center;
+}
+
+.menu-item input {
+    width: 40px; 
+    margin-right: 5px; 
+    text-align: center;
+}
+
+.menu-item-buttons {
+    width: 100%;
+    display: flex; 
+    justify-content: space-around;
+    margin-top: auto; 
+}
+
+.menu-item button {
+    padding: 5px 10px;
+    background-color: #eee;
+    cursor: pointer;
+    color: black;
+    border: none;
+}
+
+.menu-item button:hover {
+    background-color: #ddd; 
+}
+
+.menu-category h3 {
+    font-weight: bold; 
+    margin-bottom: 10px; 
+}
+
+.order-summary {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+    width: 400px; 
+    padding: 10px;
+    border-right: 2px solid #ccc;
+    overflow-y: auto;
+    height: 90vh;
+}
+
+
+.order-summary h2, .order-summary h3 {
+    font-weight: bold; 
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.order-summary-footer {
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #ccc;
+}
+
+.action-buttons {
+    display: flex;
+    width: 100%;
+    justify-content: space-around; 
+    margin-bottom: 10px; 
+}
+
+
+.order-summary-content {
+    flex-grow: 1;
+    overflow-y: auto; 
+    margin-top: 20px;
+}
+
+.order-action-btn {
+    background-color: #fff;
+    color: black;
+    padding: 10px 20px;
+    border: 2px solid black;
+    border-radius: 10px;
+    cursor: pointer;
+    flex-grow: 1; 
+    margin: 5px; 
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 14px;
+}
+
+.order-action-btn:hover {
+    background-color: #f2f2f2;
+}
+
+.order-action-btn, .view-past-orders-btn {
+    background-color: #fff;
+    color: black;
+    padding: 10px 20px;
+    border: 2px solid black;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+}
+
+.order-action-btn:hover, .view-past-orders-btn:hover {
+    background-color: #f2f2f2;
+}
+
+.view-past-orders-btn {
+    width: 100%;
+}
+
+.navButton {
+    display: inline-block;
+    padding: 0.9rem 1.8rem;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    border: 3px solid rgb(252, 70, 100);
+    cursor: pointer;
+    position: relative;
+    background-color: transparent;
+    text-decoration: none;
+    overflow: hidden;
+    z-index: 1;
+    font-family: inherit;
+   }
+   
+    .navButton::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(252, 70, 100);
+    transform: translateX(-100%);
+    transition: all .3s;
+    z-index: -1;
+   }
+   
+   .navButton:hover::before {
+    transform: translateX(0);
+   }
+

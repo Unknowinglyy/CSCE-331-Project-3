@@ -1,0 +1,113 @@
+# The Main Page
+This is the page that greets you when you first visit the site. It provides the option to login using Google. If you login and are an approved user, you will have access to the different pages of the site based on your permission level. If you are not an approved user, you have miminal access to the site (only be able to view the menu and self-checkout page). 
+
+## Logging-In Logic
+When the main page is first loaded, the server checks if there is a session. A session is created whenever a user logs in. If there is a session, the server will check if the user is in the database and if they are, it will return the user's information. Using this information, the server will determine what pages the user has access to.
+
+This is done with the use of the `getServerSession` function from the `next-auth` package. This function takes in the `authOptions` object which contains the configuration for the authentication providers (in our case, we only have Google as a provider). Next, Prisma is also used to query the database to check if the user is in the database with its `findUnique` function. If the user is found, the user's information is returned to the user variable.
+
+```tsx filename="Beginning of the main page" showLineNumbers
+import { getServerSession } from "next-auth";
+import authOptions from "./api/auth/[...nextauth]/options";
+import { prisma } from "./lib/prisma";
+```
+...
+```tsx showLineNumbers
+let user = null;
+  const session = await getServerSession(authOptions);
+  if(session){
+    user = await prisma.users.findUnique({
+      where: {
+        email: session.user?.email ?? "",
+        name: session.user?.name ?? "",
+      },
+      select:{
+        name: true,
+        email: true,
+        permissions: true,
+      },
+    })
+  }
+```
+
+### API Route for Google Login
+This is the API route that is called when the user clicks on the Google login button. The `signIn` function is called when the user logs in. This function takes in the account and profile of the user. The profile contains the user's email. The function will check if the user's email is in the database. If it is, the function will return true. If it is not, the function will return false. This API route also uses the `prisma` package to query the database.
+```tsx showLineNumbers
+import NextAuth, { NextAuthOptions } from "next-auth";
+import { prisma } from "../../../lib/prisma";
+import GoogleProvider from "next-auth/providers/google";
+
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
+const authOptions: NextAuthOptions = {
+  session: {
+    strategy: "jwt",
+  },
+  providers: [
+    GoogleProvider({
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+    }),
+  ],
+  callbacks: {
+    async signIn({ account, profile}){
+        if(!profile?.email){
+          throw new Error("No profile provided")
+        }
+        const user = await prisma.users.findUnique({
+          where: {
+            email: profile.email
+          }
+        })
+        return user ? true : false
+    }
+  },
+};
+
+export default authOptions;
+```
+
+## Permission Logic
+As can be seen in the code snippet below, the main page will display different buttons based on the user's permission level. For the Menu and Self-Serve pages, there are no checks as any user should have access to these pages. For the Manager, Cashier, Admin, and Kitchen pages, the user's permission level is checked. If the user's permission level is greater than or equal to the required permission level, the button will be displayed. If not, then the button will not be rendered. The required permission levels are as follows:
+
+- Admin = 4
+- Manager = 3
+- Cashier = 2
+- Customer = 1
+
+```tsx filename="Return value of the Main Page component" showLineNumbers
+<main className = 'loginMain '>
+      <div className = "logButtons flex-end w-full h-1/8">
+        {session ? <LogoutButton /> : <LoginButton />}
+      </div>
+      <div className="greetingBox align-center flex flex-col items-center">
+          <h1>Howdy, {user?.name || 'Precious Customer'}!</h1>
+            <h1>Here are the views you have access to:</h1>
+            <div className = "container flex justify-around w-3/4">
+
+            <Link href ='static_menu' target="_blank"><button className=""> Menu </button></Link>
+              <Link href ='customer' ><button className=""> Self-Serve  </button></Link>
+             
+          {session && (user?.permissions ?? 0) >= 3 &&(
+           
+              <Link href="manager">  <button className="">Manager </button></Link>
+            
+          )}
+          {session && (user?.permissions ?? 0) >= 2 && (
+            
+            <Link href="cashier"><button className=""> Cashier </button></Link>
+          
+          )}
+          {session && (user?.permissions ?? 0) >= 4 && (
+            <Link href="admin"><button className=""> Admin </button></Link>
+          )}
+          {session && (user?.permissions ?? 0) >= 2 && (
+
+          <Link href="kitchen"><button className=""> Kitchen </button></Link>
+
+          )}          
+            </div>
+      </div>
+    </main>
+```

@@ -1,0 +1,425 @@
+## Customer Page
+
+This page is used by customers to place orders
+
+## Getting The Menu
+To place an order the user must first know whats on the menu
+
+This following code gets the menu from the backend api only including menu items that have enough ingredients to be ordered
+```tsx 
+const fetchMenuItems = async () => {
+        try {
+            const response = await fetch('/api/inStockFoods', {
+                method: 'GET',
+            });
+            const json = await response.json();
+            setMenuItems(json);
+        } catch (error) {
+            console.error("Error fetching menu items:", error);
+        }
+    };
+```
+
+The following API call gathers this information from the database and sends it to the fetch menu items function
+```tsx 
+export async function GET(request: Request) {
+    try {
+        const result = await pool.query(`
+        SELECT "f".*
+        FROM "food" "f"
+        WHERE "f"."onmenu" = 1
+    AND NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT "fi"."foodID", "fi"."ingredientID", COUNT(*) AS "ingredient_count"
+        FROM "foodingredient" "fi"
+        GROUP BY "fi"."foodID", "fi"."ingredientID"
+    ) "req"
+    JOIN "ingredient" "i" ON "i"."ingredientID" = "req"."ingredientID"
+    WHERE "req"."foodID" = "f"."foodID"
+    AND "i"."stock" < "req"."ingredient_count"
+)
+ORDER BY "f"."foodType" ASC;
+        `);
+        const menuItems: FoodItem[] = result.rows.map((row: DbFoodRow) => ({
+            foodID: row.foodID, // Adjust column names if needed
+            name: row.name,
+            price: row.price,
+            foodType: row.foodType,
+            onmenu: row.onmenu,
+            startmonth: row.startmonth,
+            endmonth: row.endmonth,
+            temperature: row.temperature
+        }));
+        //console.log(menuItems);
+        noStore();
+        return new Response(JSON.stringify(menuItems), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (err) {
+        noStore();
+        console.error(err);
+        return new Response(JSON.stringify({ message: "nooo" }))
+    }
+}
+```
+
+Once the information for the menu is gathered it needs to be displayed in HTML based on what catagory the user selects
+and sorting the information to appropriatly display it in the recomended foods tab
+
+```HTML 
+<div className="categories-container category-nav">
+                {categories.map((category) => (
+                    <button
+                        key={category}
+                        onClick={() => {
+                            setSelectedCategory(category);
+                            setSelectedItemName(null);
+                        }}
+                        className={`category-item ${selectedCategory === category ? 'active' : ''}`}
+                    >
+                        {category}
+                    </button>
+                ))}
+            </div>
+            <div className="menu-container">
+                <div className="flex flex-wrap justify-around menu-items-wrapper menu-items-container">
+                    {selectedCategory && menuItems
+                        .filter((item) => item.foodType === selectedCategory && (((item.startmonth < currentDate) && (item.endmonth > currentDate)) || (!item.startmonth || !item.endmonth)))
+                        .map((item) => (
+                            <div key={item.foodID} className="menu-item h-fit" onClick={() => handleMenuItemClick(item.name)}>
+                                <img src={foodImages[item.name]} alt={item.name} />
+                                <h2>{item.name}</h2>
+                                <h2>${item.price.toFixed(2)}</h2>
+                                <button onClick={e => {
+                                e.stopPropagation(); 
+                                addToOrder(item, e);
+                                }} className="add-to-order-btn">Add to Order</button>
+                            </div>
+                        ))}
+                    {selectedCategory && menuItems
+                        .filter((item) => "Recomended Foods" === selectedCategory && (((item.startmonth < currentDate) && (item.endmonth > currentDate)) 
+                        || ((item.temperature === "Cold" && weatherData.main.temp < 70) || (item.temperature === "Hot" && weatherData.main.temp > 80))))
+                        .map((item) => (
+                            <div key={item.foodID} className="menu-item" onClick={() => handleMenuItemClick(item.name)}>
+                                <img src={foodImages[item.name]} alt={item.name} />
+                                <h2>{item.name}</h2>
+                                <h2>${item.price.toFixed(2)}</h2>
+                                <button onClick={e => {
+                                e.stopPropagation(); 
+                                addToOrder(item, e);
+                                }} className="add-to-order-btn">Add to Order</button>
+                            </div>
+                        ))}
+                </div>
+            </div>
+```
+
+## Weather Gathering
+Another major function of the menu is the Recomended page which gives the users the current foods that are recomended for the temperature as well as the seasonal items
+
+Here is the API Call to get the weather information
+```tsx 
+const fetchWeather = async () => {
+        try {
+            const response = await fetch('/api/weather', {
+                method: 'GET',
+            });
+            const json = await response.json();
+            setWeatherData(json);
+            console.log(weatherData.main.temp);
+        } catch (error) {
+            console.error("Error fetching menu items:", error);
+        }
+    };
+```
+This is the function it is calling in the backend which fetches the weather information 
+```tsx 
+export async function GET(request: Request) {
+
+    try {
+        const apiKey = '8b09a2135553dfdb0c9f38ba5e6d47eb';
+        const city = "College Station";
+        const response = await axios.get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=imperial`
+        );
+        const weatherData = response.data;
+        return new Response(JSON.stringify(weatherData), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('Error fetching weather data:', error);
+        return new Response(JSON.stringify("Error fetching weather data"), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+            
+    }
+
+}
+```
+this information is then displayed in the website HTML to give the users the information about the weather or Loading... if the information is still being gathered
+```HTML
+            {weatherData ? (
+                <div>
+                <h2>{weatherData.name}, {weatherData.sys.country}</h2>
+                <p>Temperature: {weatherData.main.temp}°F</p>
+                <p>Description: {weatherData.weather[0].description}</p>
+                </div>
+            ) : (
+                <p>Loading...</p>
+            )}
+```
+
+## Google Translate API
+Another API that we have integrated is Google Translate
+In order to do implement it it must first be initalized on startup as shown in the code below where the use Effect initalizes all information for the customer page
+```tsx
+useEffect(() => {
+        const interval = setInterval(() => {
+            fetchMenuItems();
+        }, 2000);
+        const scriptId = 'google-translate-script';
+
+        // Check if the script has already been appended so multiple google translate plugins arent created
+        if (!document.getElementById(scriptId)) {
+            let addScript = document.createElement('script');
+            addScript.setAttribute('src', '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit');
+            addScript.id = scriptId;
+            document.body.appendChild(addScript);
+            window.googleTranslateElementInit = googleTranslateElementInit;
+        }
+        fetchMenuItems();
+        fetchWeather();
+        const today = new Date();
+        setCurrentDate(today.getFullYear().toString() + "0" + (today.getMonth() + 1).toString() + today.getDate().toString());
+    }, []);
+
+    //initalizes the google translate element
+    const googleTranslateElementInit = () => {
+
+        window.google.translate.TranslateElement({
+            pageLanguage: 'en',
+            autoDisplay: false,
+        },'google_translate_element');
+
+    }
+```
+
+After it is initalized it is simply called in the HTML code
+```HTML 
+<div id="google_translate_element" ></div>
+```
+
+## Order Handeling
+To keep track of what items the user inputs and removes their are order handeling functions shown below
+
+
+handles adding a new item to an order
+```tsx
+    const addToOrder = (item, e) => {
+        e.stopPropagation();
+        setOrder((currentOrder) => [...currentOrder, item]);
+        setSelectedItemName(null);
+    };
+```
+
+sends a request to the api to place the order
+```tsx
+    const orderFood = async () => {
+        console.log(order);
+        try {
+            await fetch('api/addOrder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Specify content type as JSON
+                },
+                body: JSON.stringify(order) // Convert order array to JSON string and send in the body
+            });
+            setOrder([]);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    };
+
+```
+
+
+sets the selected menu item to what is clicked
+```tsx
+    const handleMenuItemClick = (itemName) => {
+        const newName = selectedItemName === itemName ? null : itemName;
+        setSelectedItemName(newName);
+    };
+```
+
+checks if the order has items than opens the payment window
+```tsx
+    const finishOrder = async () => {
+        if (order.length === 0) {
+            alert("You should add an item to your order before finishing.");
+            return;
+        }
+
+        console.log('Order finished:', order);
+        toggleModal(); 
+        togglePaymentModal();
+    };
+```
+
+this handels the payment selection button finalizing the order and turning off the pop up as well as setting the order to empty
+```tsx
+    const handlePaymentSelection = (method) => {
+        console.log('Payment method selected:', method);
+        orderFood();
+        togglePaymentModal();
+        setSelectedCategory(null);
+        setOrder([]); 
+        alert("Thank you for your order!");
+    };
+```
+This function cancels the order and sets it to empty
+```tsx
+    const cancelOrder = () => {
+        setOrder([]);
+        setSelectedCategory(null);
+    };
+```
+
+## API to place order
+When an order is placed the information is sent to an API to handle this information and push it to the database below is the API
+
+```tsx
+export async function POST(request: Request) {
+    try {
+        const orderIDHolder = await pool.query('SELECT max("ticketID") FROM ticket;');
+        const ticketID = orderIDHolder.rows[0].max;
+        console.log(ticketID);
+        const foodID = ticketID + 1;
+        console.log(foodID);
+        const data = await request.json();
+        console.log(data);
+        let price = 0;
+        for(const item of data){
+            price += item.price;
+        }
+        price = Math.ceil(price * 100) / 100
+        console.log("the data is " + price);
+        await pool.query("INSERT INTO ticket (\"ticketID\", \"timeOrdered\", \"totalCost\", payment) VALUES ("
+        + foodID + ", date (LOCALTIMESTAMP), " + price + ", '" + "Cash"
+        + "');");
+
+
+        for(const item of data){
+            //insert int foodticket the item and then decrease the ingredient amounts
+            await pool.query("INSERT INTO foodticket (\"amount\", \"ticketID\", \"foodID\") VALUES (1," + foodID + ", " + item.foodID + ");\n" + 
+            "UPDATE ingredient\n"+
+            "SET stock = stock - (\n"+
+                "SELECT SUM(fi.amount)\n"+
+                "FROM foodIngredient fi\n"+
+                "WHERE fi.\"foodID\" = "+item.foodID+ "\n"+
+                "AND fi.\"ingredientID\" = ingredient.\"ingredientID\"\n"+
+            ")\n"+
+            "WHERE \"ingredientID\" IN (\n"+
+                "SELECT fi.\"ingredientID\"\n"+
+                "FROM foodIngredient fi\n"+
+                "WHERE fi.\"foodID\" = "+item.foodID+"\n"+
+            ");"
+            );
+
+        }
+        return new Response(JSON.stringify({ message: "nooo" }))
+    } catch (err) {
+        console.error(err);
+        return new Response(JSON.stringify({ message: "nooo" }))
+    }
+}
+```
+
+## Payment window
+These two functions handle the payment window gathering all required information as well as asking users if they want to remove items from their order
+
+```tsx
+function Modal({ isOpen, onClose, children, onFinishOrder, onCancelOrder }) {
+        if (!isOpen) return null;
+    
+        return (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ background: 'white', padding: 20, borderRadius: 8, width: '80%', maxWidth: '600px', color: 'black' }}>
+                    <h2 className="modal-title">Order Summary</h2>
+                    {children}
+                    <p className="modal-total">Total: ${totalPrice.toFixed(2)}</p>
+                    <div className="modal-buttons">
+                        <button className="modal-button" onClick={onFinishOrder}>Finish Order</button>
+                        <button className="modal-button" onClick={onCancelOrder}>Cancel Order</button>
+                        <button className="modal-button" onClick={onClose}>Close</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    function PaymentModal({ isOpen, onClose, onSelectPayment }) {
+        if (!isOpen) return null;
+    
+        return (
+            <div className="payment-modal-container">
+                <div className="payment-modal-content">
+                    <h2 className="payment-modal-title">Choose Payment Method</h2>
+                    <div className="payment-options">
+                        <button className="payment-option-button" onClick={() => onSelectPayment("Credit Card")}>
+                            <img src="paymentOptionImages/credit-card.png" alt="Credit Card" />
+                            <span>Credit Card</span>
+                        </button>
+                        <button className="payment-option-button" onClick={() => onSelectPayment("Cash")}>
+                            <img src="paymentOptionImages/money.png" alt="Cash" />
+                            <span>Cash</span>
+                        </button>
+                        <button className="payment-option-button" onClick={() => onSelectPayment("Dining Dollar")}>
+                            <img src="paymentOptionImages/table-etiquette.png" alt="Dining Dollar" />
+                            <span>Dining Dollar</span>
+                        </button>
+                    </div>
+                    <button className="payment-modal-button cancel-button" onClick={onClose}>Cancel</button>
+                </div>
+            </div>
+        );
+    }    
+```
+These pop ups are then displayed in the HTML below
+
+```HTML
+<div className="order-container">
+                <div className="order-content">
+                    <div className="order-summary-container">
+                        <h3 className="item-in-order">{order.length} Items in Order</h3>
+                        <h3 className="item-in-order">Total: ${totalPrice.toFixed(2)}</h3>
+                        <button className="order-action-btn" onClick={toggleModal}>View My Order</button>
+                    </div>
+                    <Modal 
+                        isOpen={isModalOpen} 
+                        onClose={toggleModal}
+                        onFinishOrder={() => {
+                            finishOrder();
+                            toggleModal(); 
+                        }}
+                        onCancelOrder={() => {
+                            cancelOrder();
+                            toggleModal(); 
+                        }}>
+                        {order.map((item, index) => (
+                            <div key={index} className="order-item">
+                                <p>{item.name} - Quantity: {item.quantity} - ${item.price.toFixed(2)}</p>
+                            </div>
+                        ))}
+                    </Modal>
+                    <PaymentModal 
+                        isOpen={isPaymentModalOpen} 
+                        onClose={togglePaymentModal}
+                        onSelectPayment={handlePaymentSelection}
+                    />
+                </div>
+            </div>
+```

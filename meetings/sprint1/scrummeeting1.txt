@@ -1,0 +1,77 @@
+SCRUM Meeting 1 for Rev’s POS:
+Prepared by: Shantanu Raghavan
+Meeting Date: 03/25/2024
+Meeting Attendees
+Sam Bush
+Dong Ha Cho
+Blake Dejohn
+Nicholas Petersilge
+Shantanu Raghavan 
+
+Meeting Agenda Items
+-Roadblocks/Progress
+-Feasibility of Tasks
+
+Accomplishments:
+Set up frameworks
+Added basic frontend functionality
+
+
+Tasks:
+
+Design frontend interfaces for category selection and dynamic menu display.
+- Dong Ha Cho
+
+Design frontend interfaces for cart viewing, adding/removing items, and modification.
+Dong Ha Cho
+Implement and connect frontend designs to fetch and display menu items from the backend.
+ Nicholas Petersilge
+
+Design and create tables for: Orders, Food Items, and Ingredients
+Sam Bush
+COMPLETE
+ Design relationships between tables, ensuring data integrity and efficient querying.
+Sam Bush
+COMPLETE
+Populate the database with initial data (as needed).
+ Blake Dejohn
+COMPLETE
+ Develop the GET endpoint to retrieve the entire menu.
+Shantanu Raghavan
+COMPLETE
+ Develop the GET endpoint to fetch menu items filtered by category
+Nicholas Petersilge
+ 
+Develop the POST endpoint for submitting new orders.
+Nicholas Petersilge
+
+ Develop the PATCH endpoint to update inventory stock after order placement.
+ Nicholas Petersilge 
+ 
+ Establish backend connectivity to the database for data retrieval and updates.
+Shantanu Raghavan
+COMPLETE
+
+
+Before The Next Meeting
+Plans:
+ Flesh out backend endpoints
+Create manager page, will complete sprint 1 requirements early
+TASK ASSIGNMENTS: 
+
+View past orders API endpoint
+-Shantanu Raghavan
+View Static Menu
+-Blake Dejohn
+Add new menu item API endpoint
+-Shantanu Raghavan
+Adjust Inventory Stock
+-Sam Bush
+
+Minutes:
+Since this was our first meeting since the initial meeting, we were touching base on how things were going for each of us. We were speaking on how Next.js
+ requires a bit of learning for each of us, but it seems like it will be a good choice in the long run. Each of us is having unique difficulties and challenges in our functions.
+ It seems like we didn’t include enough work to do in this sprint, so we may increase the workload for the next sprint.
+
+
+

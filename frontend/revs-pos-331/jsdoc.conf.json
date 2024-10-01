@@ -1,0 +1,13 @@
+{
+  "tags": {
+      "allowUnknownTags": true
+  },
+  "source": {
+      "include": ["src/app/admin/page.tsx"],
+      "includePattern": ".+\\.tsx?$"
+  },
+  "opts": {
+      "recurse": true,
+      "template": "node_modules/minami"
+  }
+}

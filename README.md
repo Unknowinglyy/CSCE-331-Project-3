@@ -1,4 +1,4 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/ttC5_kKh)
+[Check out the final presentation video!](https://www.youtube.com/watch?v=jlRTO2bS-oA&ab_channel=NAP)
 
 Project: Rev’s Grill POS System
 
